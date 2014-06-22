@@ -1,8 +1,10 @@
 --- # Configuration for the Fantasy LCS stats script
 
+# Database credentials
 database:
     username:   'username'
     password:   'password'
 
-last-fetch: '2010-01-01'
+# Date of the earliest incomplete fetch
+next-fetch: '2010-01-01'
 

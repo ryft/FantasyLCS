@@ -67,10 +67,14 @@ sub parse_event_schedule {
             # Insert tournament record or update if it exists
             my $sth = $dbh->prepare(
                 'INSERT INTO tournament (id, name) VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE id = ?'
+                ON DUPLICATE KEY UPDATE id = ?, name = ?'
             )   or die "Couldn't prepare statement: ".$dbh->errstr;
-            $sth->execute($block->{tournamentId}, $block->{tournamentName}, $block->{tournamentId})
-                or die "Couldn't execute statement: ".$sth->errstr;
+            $sth->execute(
+                $block->{tournamentId},
+                $block->{tournamentName},
+                $block->{tournamentId},
+                $block->{tournamentName}
+            )   or die "Couldn't execute statement: ".$sth->errstr;
             
             parse_event_block($block);
         }
@@ -256,7 +260,17 @@ sub parse_player_stats {
     }
 }
 
-parse_event_schedule (get_schedule $config->{'last-fetch'});
+# Gets the date of the earliest incomplete fetch, or today's date
+sub get_next_fetch {
+    my $sth = $dbh->prepare('SELECT `dateTime` FROM `match` WHERE winnerId = 0 ORDER BY `dateTime` ASC')
+        or die "Couldn't prepare statement: ".$dbh->errstr;
+    $sth->execute or die "Couldn't execute statement: ".$sth->errstr;
+    
+    my $next_fetch = $sth->fetchrow_array;
+    return ($next_fetch) ? substr($next_fetch, 0, 10) : DateTime->now->ymd;
+}
+
+parse_event_schedule (get_schedule $config->{'next-fetch'});
 
 foreach my $id (@TOURNAMENTS) {
     my $stats = get_tournament_stats $id;
@@ -266,9 +280,10 @@ foreach my $id (@TOURNAMENTS) {
     parse_player_stats $stats->{playerStats};
 }
 
-# Save the last fetch date to the config file
-$config->{'last-fetch'} = DateTime->now->ymd;
+# Save the next fetch date to the config file
+$config->{'next-fetch'} = get_next_fetch;
 DumpFile $config_path, $config;
+print "Set next fetch date to ".$config->{'next-fetch'}."\n";
 
 # Disconnect from the database
 $dbh->disconnect;
