@@ -150,6 +150,12 @@ ALTER TABLE `teamGame` ADD FOREIGN KEY (gameId) REFERENCES `game` (`id`);
 -- ALTER TABLE `teamGame` ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 
 -- ---
+-- Initial Data
+-- ---
+
+INSERT INTO `team` (`id`,`name`,`acronym`,`wins`,`losses`) VALUES (0,'','',0,0);
+
+-- ---
 -- Test Data
 -- ---
 
