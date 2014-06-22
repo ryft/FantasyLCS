@@ -79,20 +79,7 @@ DROP TABLE IF EXISTS `player`;
 CREATE TABLE `player` (
   `id` INTEGER NOT NULL,
   `name` VARCHAR(255) NULL DEFAULT NULL,
-  `roleId` INTEGER NULL DEFAULT NULL,
-  PRIMARY KEY (`id`)
-);
-
--- ---
--- Table 'role'
--- 
--- ---
-
-DROP TABLE IF EXISTS `role`;
-		
-CREATE TABLE `role` (
-  `id` INTEGER NOT NULL AUTO_INCREMENT,
-  `roleName` VARCHAR(255) NULL DEFAULT NULL,
+  `role` VARCHAR(255) NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
 );
 
@@ -145,7 +132,6 @@ ALTER TABLE `match` ADD FOREIGN KEY (tournamentId) REFERENCES `tournament` (`id`
 ALTER TABLE `match` ADD FOREIGN KEY (blueId) REFERENCES `team` (`id`);
 ALTER TABLE `match` ADD FOREIGN KEY (redId) REFERENCES `team` (`id`);
 ALTER TABLE `match` ADD FOREIGN KEY (winnerId) REFERENCES `team` (`id`);
-ALTER TABLE `player` ADD FOREIGN KEY (roleId) REFERENCES `role` (`id`);
 ALTER TABLE `playerGame` ADD FOREIGN KEY (playerId) REFERENCES `player` (`id`);
 ALTER TABLE `playerGame` ADD FOREIGN KEY (gameId) REFERENCES `game` (`id`);
 ALTER TABLE `teamGame` ADD FOREIGN KEY (teamId) REFERENCES `team` (`id`);
@@ -160,7 +146,6 @@ ALTER TABLE `teamGame` ADD FOREIGN KEY (gameId) REFERENCES `game` (`id`);
 -- ALTER TABLE `tournament` ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 -- ALTER TABLE `team` ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 -- ALTER TABLE `player` ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
--- ALTER TABLE `role` ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 -- ALTER TABLE `playerGame` ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 -- ALTER TABLE `teamGame` ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 
@@ -176,10 +161,8 @@ ALTER TABLE `teamGame` ADD FOREIGN KEY (gameId) REFERENCES `game` (`id`);
 -- ('','');
 -- INSERT INTO `team` (`id`,`name`,`acronym`,`wins`,`losses`) VALUES
 -- ('','','','','');
--- INSERT INTO `player` (`id`,`name`,`roleId`) VALUES
+-- INSERT INTO `player` (`id`,`name`,`role`) VALUES
 -- ('','','');
--- INSERT INTO `role` (`id`,`roleName`) VALUES
--- ('','');
 -- INSERT INTO `playerGame` (`playerId`,`gameId`,`kills`,`deaths`,`assists`,`minionKills`,`doubleKills`,`tripleKills`,`quadraKills`,`pentaKills`) VALUES
 -- ('','','','','','','','','','');
 -- INSERT INTO `teamGame` (`teamId`,`gameId`,`baronsKilled`,`dragonsKilled`,`firstBlood`,`firstTower`,`firstInhibitor`,`towersKilled`) VALUES
