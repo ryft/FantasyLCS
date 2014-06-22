@@ -5,25 +5,26 @@ use DateTime;
 use DBI;
 use JSON;
 use LWP::UserAgent;
+use YAML::XS qw/LoadFile DumpFile/;
 
 use strict;
 use warnings;
-
-my $dbh = DBI->connect('DBI:mysql:fantasy', 'root', '3') or die "Cannot connect to database:".DBI->errstr;
 
 my $TID_EU = "102";
 my $TID_NA = "104";
 my @TOURNAMENTS = ($TID_EU, $TID_NA);
 
-# Set up the schedule request for the current time
-my $time_now = DateTime->now;
-my $time_now_ymd = $time_now->ymd;
+my $config_path = 'config.yml';
+my $config = LoadFile $config_path;
 
 # Configure the user agent, LolEsports.com is picky
 my $ua = LWP::UserAgent->new;
-$ua->agent('Mozilla/5.0');
+$ua->agent('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:30.0) Gecko/20100101 Firefox/30.0');
 $ua->timeout(60);
 $ua->env_proxy;
+
+my $dbh = DBI->connect('DBI:mysql:fantasy', $config->{database}->{username}, $config->{database}->{password})
+    or die "Cannot connect to database:".DBI->errstr;
 
 # get_schedule(date_ymd)
 # Fetches the event schedule from lolesports.com,
@@ -255,7 +256,7 @@ sub parse_player_stats {
     }
 }
 
-parse_event_schedule (get_schedule $time_now_ymd);
+parse_event_schedule (get_schedule $config->{'last-fetch'});
 
 foreach my $id (@TOURNAMENTS) {
     my $stats = get_tournament_stats $id;
@@ -265,5 +266,10 @@ foreach my $id (@TOURNAMENTS) {
     parse_player_stats $stats->{playerStats};
 }
 
+# Save the last fetch date to the config file
+$config->{'last-fetch'} = DateTime->now->ymd;
+DumpFile $config_path, $config;
+
+# Disconnect from the database
 $dbh->disconnect;
 

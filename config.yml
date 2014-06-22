@@ -1,0 +1,8 @@
+--- # Configuration for the Fantasy LCS stats script
+
+database:
+    username:   'username'
+    password:   'password'
+
+last-fetch: '2010-01-01'
+
