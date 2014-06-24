@@ -1,0 +1,7 @@
+--- # Configuration for the LoL API
+
+# Database credentials
+database:
+    username:   'username'
+    password:   'password'
+

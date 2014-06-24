@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+
+use CGI qw(:standard);
+use Fantasy::API;
+use JSON;
+use YAML::XS qw/LoadFile/;
+
+use strict;
+use warnings;
+
+print header('application/json');
+
+my $config = LoadFile '../../api-config.yml';
+my $api = Fantasy::API->new($config->{database});
+
+my $query = CGI->new;
+my %vars = $query->Vars;
+my $output = $api->player_score(\%vars) || [];
+print encode_json $output;
+
