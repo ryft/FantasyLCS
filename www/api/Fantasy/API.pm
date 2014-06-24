@@ -57,6 +57,17 @@ sub player {
     return \@player;
 }
 
+sub team_score {
+    my ($self, $params) = @_;
+    my $dbh = $self->dbh;
+
+    return $dbh->selectrow_arrayref('SELECT * FROM teamGame WHERE gameId = ?', {}, $params->{gameId})
+        if ($params->{gameId});
+
+    return $dbh->selectall_arrayref('SELECT * FROM teamGame WHERE teamId = ?', {}, $params->{teamId})
+        if ($params->{teamId});
+}
+
 sub player_score {
     my ($self, $params) = @_;
     my $dbh = $self->dbh;
@@ -66,7 +77,25 @@ sub player_score {
 
     return $dbh->selectall_arrayref('SELECT * FROM playerGame WHERE playerId = ?', {}, $params->{playerId})
         if ($params->{playerId});
+}
 
+sub match {
+    my ($self, $params) = @_;
+    my $dbh = $self->dbh;
+
+    return $dbh->selectrow_arrayref('SELECT * FROM `match` WHERE id = ?', {}, $params->{id})
+        if ($params->{id});
+
+    return $dbh->selectrow_arrayref('SELECT m.* FROM `match` m, game g WHERE g.matchId = m.id and g.id = ?', {}, $params->{gameId})
+        if ($params->{gameId});
+
+    if ($params->{start} && $params->{end}) {
+        return $dbh->selectall_arrayref('SELECT * FROM `match` m WHERE `dateTime` > ? AND `dateTime` < ?', {}, $params->{start}, $params->{end});
+    } elsif ($params->{start}) {
+        return $dbh->selectall_arrayref('SELECT * FROM `match` m WHERE `dateTime` > ?', {}, $params->{start});
+    } elsif ($params->{end}) {
+        return $dbh->selectall_arrayref('SELECT * FROM `match` m WHERE `dateTime` < ?', {}, $params->{end});
+    }
 }
 
 no Moose;
