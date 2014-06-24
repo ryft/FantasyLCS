@@ -70,10 +70,8 @@ sub parse_event_schedule {
                 ON DUPLICATE KEY UPDATE id = ?, name = ?'
             )   or die "Couldn't prepare statement: ".$dbh->errstr;
             $sth->execute(
-                $block->{tournamentId},
-                $block->{tournamentName},
-                $block->{tournamentId},
-                $block->{tournamentName}
+                $block->{tournamentId}, $block->{tournamentName},
+                $block->{tournamentId}, $block->{tournamentName},
             )   or die "Couldn't execute statement: ".$sth->errstr;
             
             parse_event_block($block);
@@ -95,19 +93,11 @@ sub parse_event_block {
             my $sth_team = $dbh->prepare(
                 'INSERT INTO team (id, name, acronym, wins, losses)
                 VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE id = ?, name = ?, acronym = ?, wins = ?, losses = ?')
-                or die "Couldn't prepare statement: ".$dbh->errstr;
+                ON DUPLICATE KEY UPDATE id = ?, name = ?, acronym = ?, wins = ?, losses = ?'
+            )   or die "Couldn't prepare statement: ".$dbh->errstr;
             $sth_team->execute(
-                $team->{id},
-                $team->{name},
-                $team->{acronym},
-                $team->{wins},
-                $team->{losses},
-                $team->{id},
-                $team->{name},
-                $team->{acronym},
-                $team->{wins},
-                $team->{losses}
+                $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
+                $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
             )   or die "Couldn't execute statement: ".$sth_team->errstr;
         }
 
@@ -137,13 +127,11 @@ sub parse_event_block {
             my $sth_game = $dbh->prepare(
                 'INSERT INTO game (id, matchId, winnerId)
                 VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE winnerId = ?'
+                ON DUPLICATE KEY UPDATE id = ?, matchId = ?, winnerId = ?'
             )   or die "Couldn't prepare statement: ".$dbh->errstr;
             $sth_game->execute(
-                $game->{id},
-                $match->{matchId},
-                $game->{winnerId},
-                $game->{winnerId}
+                $game->{id}, $match->{matchId}, $game->{winnerId},
+                $game->{id}, $match->{matchId}, $game->{winnerId},
             )   or die "Couldn't execute statement: ".$sth_game->errstr;
         }
     }
@@ -196,7 +184,7 @@ sub parse_team_stats {
                 $team_game->{firstTower},
                 $team_game->{firstInhibitor},
                 $team_game->{towersKilled},
-                $team_game->{teamId}
+                $team_game->{teamId},
             )   or die "Couldn't execute statement: ".$sth->errstr;
         }
     }
@@ -218,12 +206,8 @@ sub parse_player_stats {
                 ON DUPLICATE KEY UPDATE id = ?, name = ?, role = ?'
             ) or die "Couldn't prepare statement: ".$dbh->errstr;
             $sth_player->execute(
-                $player_game->{playerId},
-                $player_game->{playerName},
-                $player_game->{role},
-                $player_game->{playerId},
-                $player_game->{playerName},
-                $player_game->{role}
+                $player_game->{playerId}, $player_game->{playerName}, $player_game->{role},
+                $player_game->{playerId}, $player_game->{playerName}, $player_game->{role},
             ) or die "Couldn't execute statement: ".$sth_player->errstr;
 
             # Test wether or not we've seen this game before
@@ -254,7 +238,7 @@ sub parse_player_stats {
                 $player_game->{tripleKills},
                 $player_game->{quadraKills},
                 $player_game->{pentaKills},
-                $player_game->{playerId}
+                $player_game->{playerId},
             )   or die "Couldn't execute statement: ".$sth->errstr;
         }
     }

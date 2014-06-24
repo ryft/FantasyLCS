@@ -17,7 +17,6 @@ CREATE TABLE `game` (
   `id` INTEGER NOT NULL,
   `matchId` INTEGER NULL DEFAULT NULL,
   `winnerId` INTEGER NULL DEFAULT NULL,
-  `dateTime` DATETIME NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
 );
 
@@ -159,8 +158,8 @@ INSERT INTO `team` (`id`,`name`,`acronym`,`wins`,`losses`) VALUES (0,'','',0,0);
 -- Test Data
 -- ---
 
--- INSERT INTO `game` (`id`,`matchId`,`winnerId`,`dateTime`) VALUES
--- ('','','','');
+-- INSERT INTO `game` (`id`,`matchId`,`winnerId`) VALUES
+-- ('','','');
 -- INSERT INTO `match` (`id`,`tournamentId`,`tournamentRound`,`blueId`,`redId`,`winnerId`,`name`,`dateTime`) VALUES
 -- ('','','','','','','','');
 -- INSERT INTO `tournament` (`id`,`name`) VALUES
