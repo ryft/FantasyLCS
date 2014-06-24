@@ -1,7 +1,11 @@
 # Fantasy LCS
 This repository contains tools to examine the statistics for teams and players in the [League of Legends](http://www.lolesports.com/) regional tournaments. European and North American tournaments are currently supported, and other international tournaments will be included soon&#8482; (work in progress).
 
-A lot of the database structure is dictated by the format of the data returned by the lolesports.com API. A public API will be created in the near future.
+### Database
+A lot of the database structure is dictated by the format of the data returned by the lolesports.com API. The schema is included in `schema.sql`.
+
+### Web API
+A web interface to the database is included in the `www` folder. It is currently hosted at [lol.ryft.co.uk](http://lol.ryft.co.uk).
 
 ### Example Usage
 There are only 6 teams in the EU or NA LCS which have won a game after losing the first inhibitor:
@@ -11,7 +15,7 @@ mysql> SELECT t.name AS team, COUNT(tg.gameId) AS games
     ->     WHERE   t.id = tg.teamId
     ->         AND tg.gameId = g.id
     ->         AND g.matchId = m.id
-    ->         AND g.winnerId = tg.teamId
+    ->         AND g.winnerId = t.id
     ->         AND tg.firstInhibitor = 0
     ->         AND (m.tournamentId = 102 OR m.tournamentId = 104)
     ->     GROUP BY tg.teamId
