@@ -15,6 +15,6 @@ my $api = Fantasy::API->new($config->{database});
 
 my $query = CGI->new;
 my %vars = $query->Vars;
-my $output = $api->player_score(\%vars) || [];
-print encode_json $output;
+my $output = $api->player_score(\%vars) || 0;
+print encode_json([$output]);
 
