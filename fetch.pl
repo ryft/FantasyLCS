@@ -10,9 +10,10 @@ use YAML::XS qw/LoadFile DumpFile/;
 use strict;
 use warnings;
 
-my $TID_EU = "102";
-my $TID_NA = "104";
-my @TOURNAMENTS = ($TID_EU, $TID_NA);
+my $TOURNAMENTS = {
+    102 =>  'EU LCS',
+    104 =>  'NA LCS',
+};
 
 my $config_path = 'config.yml';
 my $config = LoadFile $config_path;
@@ -34,6 +35,7 @@ sub get_schedule {
 
     # Fetch the JSON-formatted schedule and parse it
     my $request = "http://na.lolesports.com/api/programming.json?parameters[method]=next&parameters[time]=$date_ymd&parameters[expand_matches]=1";
+    print "Schedule API call: $request\n";
     my $response = $ua->get($request);
 
     die $response->status_line unless $response->is_success;
@@ -45,6 +47,7 @@ sub get_tournament_stats {
     
     # Fetch the JSON-formatted schedule and parse it
     my $request = "http://na.lolesports.com/api/gameStatsFantasy.json?tournamentId=$id";
+    print "Stats API call: $request\n";
     my $response = $ua->get($request);
 
     die $response->status_line unless $response->is_success;
@@ -61,7 +64,7 @@ sub parse_event_schedule {
     my $programming = shift;
     
     foreach my $block (@$programming) {
-        if ($block->{tournamentId} ~~ @TOURNAMENTS) {
+        if (defined $TOURNAMENTS->{$block->{tournamentId}}) {
             print "Matches for ".substr($block->{dateTime}, 0, 10)." in the ${\$block->{tournamentName}} Week ${\$block->{week}}:\n";
 
             # Insert tournament record or update if it exists
@@ -244,6 +247,47 @@ sub parse_player_stats {
     }
 }
 
+# Updates the team associated with a given player ID.
+# This method looks at the the teams involved in each max and chooses
+# the team with the most occurrences. It's not a very good method and
+# gives incorrect results soon after players transfer between teams.
+sub update_player_team {
+    my $player_id = shift;
+
+    # Fetch all the teams involved in matches where this player has played
+    my $teams_involved = $dbh->selectall_arrayref(
+        'SELECT m.blueId, m.redId
+        FROM `match` m, game g, playerGame pg
+        WHERE g.matchId = m.id
+          AND pg.gameId = g.id
+          AND pg.playerId = ?',
+    {}, $player_id) or die "Couldn't execute statement: ".$dbh->errstr;
+
+    # Count the number of appearances each team has made in these matches
+    my %team_ids = ();
+    foreach my $ids (@$teams_involved) {
+        my ($blue_id, $red_id) = @$ids;
+        $team_ids{$blue_id}++;
+        $team_ids{$red_id}++;
+    }
+
+    # Find the team with the most appearances (hash key with largest value)
+    my ($tid, @keys) = keys   %team_ids;
+    my ($max, @vals) = values %team_ids;
+    for (0 .. $#keys) {
+        if ($vals[$_] > $max) {
+            $max = $vals[$_];
+            $tid = $keys[$_];
+        }
+    }
+
+    # Update the player's database record
+    my $sth = $dbh->prepare('UPDATE player SET teamId = ? WHERE id = ?')
+        or die "Coutldn't prepare statement: ".$dbh->errstr;
+    $sth->execute($tid, $player_id)
+        or die "Couldn't execute statement: ".$sth->errstr;
+}
+
 # Gets the date of the earliest incomplete fetch, or today's date
 sub get_next_fetch {
     my $sth = $dbh->prepare('SELECT `dateTime` FROM `match` WHERE winnerId = 0 ORDER BY `dateTime` ASC')
@@ -254,14 +298,25 @@ sub get_next_fetch {
     return ($next_fetch) ? substr($next_fetch, 0, 10) : DateTime->now->ymd;
 }
 
+
 parse_event_schedule (get_schedule $config->{'next-fetch'});
 
-foreach my $id (@TOURNAMENTS) {
+foreach my $id (keys $TOURNAMENTS) {
     my $stats = get_tournament_stats $id;
-    print "Updating team stats for tournament $id\n";
+    print "Updating team stats for ".$TOURNAMENTS->{$id}."\n";
     parse_team_stats $stats->{teamStats};
-    print "Updating player stats for tournament $id\n";
+    print "Updating player stats for ".$TOURNAMENTS->{$id}."\n";
     parse_player_stats $stats->{playerStats};
+}
+
+if ($#ARGV > -1 && $ARGV[0] eq 'teams') {
+    print "Updating player teams...\n";
+
+    # Get all player (id, name)s to update
+    my $players = $dbh->selectall_arrayref('SELECT id FROM player');
+    foreach (@$players) {
+        update_player_team (shift @$_);
+    }
 }
 
 # Save the next fetch date to the config file

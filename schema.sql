@@ -77,6 +77,7 @@ DROP TABLE IF EXISTS `player`;
 		
 CREATE TABLE `player` (
   `id` INTEGER NOT NULL,
+  `teamId` INTEGER NULL DEFAULT NULL,
   `name` VARCHAR(255) NULL DEFAULT NULL,
   `role` VARCHAR(255) NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -131,6 +132,7 @@ ALTER TABLE `match` ADD FOREIGN KEY (tournamentId) REFERENCES `tournament` (`id`
 ALTER TABLE `match` ADD FOREIGN KEY (blueId) REFERENCES `team` (`id`);
 ALTER TABLE `match` ADD FOREIGN KEY (redId) REFERENCES `team` (`id`);
 ALTER TABLE `match` ADD FOREIGN KEY (winnerId) REFERENCES `team` (`id`);
+ALTER TABLE `player` ADD FOREIGN KEY (teamId) REFERENCES `team` (`id`);
 ALTER TABLE `playerGame` ADD FOREIGN KEY (playerId) REFERENCES `player` (`id`);
 ALTER TABLE `playerGame` ADD FOREIGN KEY (gameId) REFERENCES `game` (`id`);
 ALTER TABLE `teamGame` ADD FOREIGN KEY (teamId) REFERENCES `team` (`id`);
