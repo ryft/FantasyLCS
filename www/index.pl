@@ -23,7 +23,7 @@ my $functions = {
                         { name => 'acronym', desc => 'The acronym which represents the team name.' }],
     },
     'player.json' => {
-        description => 'Returns the id, name, and most recently-played role for a single player. Useful for finding the ID of a player by name.',
+        description => 'Returns the id, team id<sup><a id="ref1" href="#fn1">1</a></sup>, name, and most recently-played role for a single player. Useful for finding the ID of a player by name.',
         parameters  => [{ name => 'id', desc => 'The Riot ID of a player.' },
                         { name => 'name', desc => 'The in-game name of a player.' }],
     },
@@ -75,6 +75,12 @@ foreach my $function_name (sort keys $functions) {
         ul(li({type=>'square'}, param_list $function->{parameters}));
 }
 print "</ul>";
+
+print h2("Footnotes");
+print ol li({id=>fn1},
+    'The method used for updating teams enumerates all teams involved in matches
+    with each individual player, and assigns the player to the team with the most
+    occurrences. This deals with team transfers poorly. <a href="#ref1">&#8617;</a>');
 
 print end_html, "\n";
 
