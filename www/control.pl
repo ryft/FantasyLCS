@@ -65,7 +65,7 @@ if ($session->is_expired) {
     if (param('action') eq 'update') {
         print 'Running update operation... ';
         my $start = time;
-        my $output = `cd /home/james/git/FantasyLCS/ && /usr/bin/perl /home/james/git/FantasyLCS/fetch.pl teams 2>&1`;
+        my $output = `cd .. && /usr/bin/perl fetch.pl teams 2>&1`;
         my $end = time;
         printf("completed in %.2fs.\n", $end - $start);
         print options_page(pre(encode_entities $output));
