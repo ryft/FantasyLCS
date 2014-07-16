@@ -2,6 +2,9 @@
 
 use CGI::Pretty qw(:standard);
 
+use strict;
+use warnings;
+
 print header;
 print start_html "League of Legends Public API";
 

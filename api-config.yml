@@ -5,3 +5,6 @@ database:
     username:   'username'
     password:   'password'
 
+# Web API control panel password
+control:
+    password:   'sha256sum'
