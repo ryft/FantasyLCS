@@ -80,7 +80,7 @@ foreach my $function_name (sort keys $functions) {
 print "</ul>";
 
 print h2("Footnotes");
-print ol li({id=>fn1},
+print ol li({id=>'fn1'},
     'The method used for updating teams enumerates all teams involved in matches
     with each individual player, and assigns the player to the team with the most
     occurrences. This deals with team transfers poorly. <a href="#ref1">&#8617;</a>');
