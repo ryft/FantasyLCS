@@ -5,7 +5,7 @@ This repository contains tools to examine the statistics for teams and players i
 A lot of the database structure is dictated by the format of the data returned by the lolesports.com API. The schema is included in `schema.sql`.
 
 ### Web API
-A web interface to the database is included in the `www` folder. It is currently hosted at [lol.ryft.co.uk](http://lol.ryft.co.uk).
+A web interface to the database is included in the `www` folder. It is currently hosted at [lol.ryft.uk](http://lol.ryft.uk).
 
 ### Example Usage
 There are only 6 teams in the EU or NA LCS which have won a game after losing the first inhibitor:
