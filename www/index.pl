@@ -1,21 +1,29 @@
 #!/usr/bin/perl
 
 use CGI::Pretty qw(:standard);
+use YAML::XS qw(LoadFile);
 
 use strict;
 use warnings;
 
+my $config = LoadFile '../config.yml';
+my $next_fetch = $config->{'next-fetch'};
+
 print header;
 print start_html "League of Legends Public API";
 
+print div({style=>'float: right; border: 1px solid black; padding: 6px; text-align: center;'},
+        a({href=>'control.pl'}, 'Control Panel') . br . "Next update: $next_fetch");
+
 print h1("League of Legends Public API"), "\n";
+
 print p("This is an experimental API for <a href='http://fantasy.lolesports.com'>Fantasy LCS</a> data. Feedback is very welcome, please <a href='http://ryft.uk/out.php?target=email'>email</a> me with any suggestions."), "\n";
 print p("All the source code involved, including the API, database schema and stats processing, is available on <a href='https://github.com/ryft/FantasyLCS'>Github</a>."), "\n";
 print p("Until further notice, all functions are subject to change and/or rate-limiting."), "\n";
 
 print h2("Functions"), "\n";
 print p("All endpoints are URIs which take one or more GET parameters and return a JSON-formatted string."), "\n";
-print p("For example, the request <tt>lol.ryft.uk/api/player.json?id=281</tt> returns <tt>[\"281\",\"Tabzz\",\"AD Carry\"]</tt>."), "\n";
+print p("For example, the request <tt>lol.ryft.uk/api/player.json?id=281</tt> returns <tt>[\"281\",\"70\",\"Tabzz\",\"AD Carry\"]</tt>."), "\n";
 print p("Unless otherwise stated, parameters can't be combined. Lower-bound dates are inclusive, upper bounds exclusive."), "\n";
 print p("Dates must be provided in the format YYYY-MM-DD."), "\n";
 
