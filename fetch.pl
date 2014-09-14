@@ -5,18 +5,24 @@ use DateTime;
 use DBI;
 use JSON;
 use LWP::UserAgent;
+use Readonly;
 use YAML::XS qw/LoadFile DumpFile/;
 
 use strict;
 use warnings;
 
-my $TOURNAMENTS = {
+Readonly my $CONFIG_PATH => '/home/james/git/FantasyLCS/';
+Readonly my $TOURNAMENTS => {
     102 =>  'EU LCS',
     104 =>  'NA LCS',
+    175 =>  'Group A',
+    177 =>  'Group B',
+    178 =>  'Group C',
+    179 =>  'Group D',
+    176 =>  'Knockout Stage',
 };
 
-my $config_path = 'config.yml';
-my $config = LoadFile $config_path;
+my $config = LoadFile ($CONFIG_PATH . 'config.yml');
 
 # Configure the user agent, LolEsports.com is picky
 my $ua = LWP::UserAgent->new;
@@ -65,7 +71,7 @@ sub parse_event_schedule {
     
     foreach my $block (@$programming) {
         if (defined $TOURNAMENTS->{$block->{tournamentId}}) {
-            print "Matches for ".substr($block->{dateTime}, 0, 10)." in the ${\$block->{tournamentName}} Week ${\$block->{week}}:\n";
+            print "Matches for ".substr($block->{dateTime}, 0, 10)." in ${\$block->{label}}:\n";
 
             # Insert tournament record or update if it exists
             my $sth = $dbh->prepare(
@@ -88,21 +94,6 @@ sub parse_event_block {
     my $matches = $block->{matches};
     foreach my $match (values $matches) {
         print "> ".$match->{matchName}."\n";
-
-        my $teams = $match->{contestants};
-        foreach my $team (values $teams) {
-
-            # Insert team record or update wins/losses
-            my $sth_team = $dbh->prepare(
-                'INSERT INTO team (id, name, acronym, wins, losses)
-                VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE id = ?, name = ?, acronym = ?, wins = ?, losses = ?'
-            )   or die "Couldn't prepare statement: ".$dbh->errstr;
-            $sth_team->execute(
-                $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
-                $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
-            )   or die "Couldn't execute statement: ".$sth_team->errstr;
-        }
 
         # Insert match record or update winner
         my $sth_match = $dbh->prepare(
@@ -136,6 +127,24 @@ sub parse_event_block {
                 $game->{id}, $match->{matchId}, $game->{winnerId},
                 $game->{id}, $match->{matchId}, $game->{winnerId},
             )   or die "Couldn't execute statement: ".$sth_game->errstr;
+        }
+
+        # Skip team info if teams are TBD
+        next unless $match->{contestants};
+        my $teams = $match->{contestants};
+        foreach my $team (values $teams) {
+            next unless ($team and $team->{id});
+
+            # Insert team record or update wins/losses
+            my $sth_team = $dbh->prepare(
+                'INSERT INTO team (id, name, acronym, wins, losses)
+                VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE id = ?, name = ?, acronym = ?, wins = ?, losses = ?'
+            )   or die "Couldn't prepare statement: ".$dbh->errstr;
+            $sth_team->execute(
+                $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
+                $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
+            )   or die "Couldn't execute statement: ".$sth_team->errstr;
         }
     }
 }
@@ -321,7 +330,7 @@ if ($#ARGV > -1 && $ARGV[0] eq 'teams') {
 
 # Save the next fetch date to the config file
 $config->{'next-fetch'} = get_next_fetch;
-DumpFile $config_path, $config;
+DumpFile ($CONFIG_PATH . 'config.yml', $config);
 print "Set next fetch date to ".$config->{'next-fetch'}."\n";
 
 # Disconnect from the database
