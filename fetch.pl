@@ -11,7 +11,7 @@ use YAML::XS qw/LoadFile DumpFile/;
 use strict;
 use warnings;
 
-Readonly my $CONFIG_PATH => '/home/james/git/FantasyLCS/';
+Readonly my $CONFIG_PATH => $ENV{'CONFIG_PATH'} || '';
 Readonly my $TOURNAMENTS => {
     102 =>  'EU LCS',
     104 =>  'NA LCS',
@@ -95,6 +95,25 @@ sub parse_event_block {
     foreach my $match (values $matches) {
         print "> ".$match->{matchName}."\n";
 
+        # Skip team info if teams are TBD
+        if ($match->{contestants}) {
+            my $teams = $match->{contestants};
+            foreach my $team (values $teams) {
+                next unless ($team and $team->{id});
+    
+                # Insert team record or update wins/losses
+                my $sth_team = $dbh->prepare(
+                    'INSERT INTO team (id, name, acronym, wins, losses)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE id = ?, name = ?, acronym = ?, wins = ?, losses = ?'
+                )   or die "Couldn't prepare statement: ".$dbh->errstr;
+                $sth_team->execute(
+                    $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
+                    $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
+                )   or die "Couldn't execute statement: ".$sth_team->errstr;
+            }
+        }
+
         # Insert match record or update winner
         my $sth_match = $dbh->prepare(
             'INSERT INTO `match` (id, tournamentId, tournamentRound, blueId, redId, winnerId, name, dateTime)
@@ -127,24 +146,6 @@ sub parse_event_block {
                 $game->{id}, $match->{matchId}, $game->{winnerId},
                 $game->{id}, $match->{matchId}, $game->{winnerId},
             )   or die "Couldn't execute statement: ".$sth_game->errstr;
-        }
-
-        # Skip team info if teams are TBD
-        next unless $match->{contestants};
-        my $teams = $match->{contestants};
-        foreach my $team (values $teams) {
-            next unless ($team and $team->{id});
-
-            # Insert team record or update wins/losses
-            my $sth_team = $dbh->prepare(
-                'INSERT INTO team (id, name, acronym, wins, losses)
-                VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE id = ?, name = ?, acronym = ?, wins = ?, losses = ?'
-            )   or die "Couldn't prepare statement: ".$dbh->errstr;
-            $sth_team->execute(
-                $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
-                $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
-            )   or die "Couldn't execute statement: ".$sth_team->errstr;
         }
     }
 }
