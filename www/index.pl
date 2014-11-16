@@ -10,9 +10,26 @@ my $config = LoadFile '../config.yml';
 my $next_fetch = $config->{'next-fetch'};
 
 print header;
-print start_html "League of Legends Public API";
+print start_html(
+    -title  => "League of Legends Public API",
+    -head   => [
+        Link({
+            -rel    => "stylesheet",
+            -href   => "https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css",
+        }),
+        Link({
+            -rel    => "stylesheet",
+            -href   => "http://bootswatch.com/flatly/bootstrap.min.css",
+        }),
+        Link({
+            -rel    => "stylesheet",
+            -href   => "//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css",
+        }),
+    ],
+);
 
-print div({style=>'float: right; border: 1px solid black; padding: 6px; text-align: center;'},
+print '<div class="container-fluid">';
+print div({style=>'float: right; border: 1px solid black; padding: 6px; margin: 20px; text-align: center;'},
         a({href=>'control.pl'}, 'Control Panel') . br . "Next update: $next_fetch");
 
 print h1("League of Legends Public API"), "\n";
@@ -30,12 +47,12 @@ print p("Dates must be provided in the format YYYY-MM-DD."), "\n";
 my $functions = {
     'team.json' => {
         description => 'Returns the id, name, acronym, and current number of wins and losses of a single team. Useful for finding team IDs and their current success rate.',
-        parameters  => [{ name => 'id', desc => 'The Riot ID of a team.' },
+        parameters  => [{ name => 'id', desc => 'The ID of a team.' },
                         { name => 'acronym', desc => 'The acronym which represents the team name.' }],
     },
     'player.json' => {
         description => 'Returns the id, team id<sup><a id="ref1" href="#fn1">1</a></sup>, name, and most recently-played role for a single player. Useful for finding the ID of a player by name.',
-        parameters  => [{ name => 'id', desc => 'The Riot ID of a player.' },
+        parameters  => [{ name => 'id', desc => 'The ID of a player.' },
                         { name => 'name', desc => 'The in-game name of a player.' }],
     },
     'teamGame.json' => {
@@ -76,16 +93,16 @@ sub param_list {
     return \@output;
 }
 
-print "<ul>";
+print '<ul style="list-style-type: square;">';
 foreach my $function_name (sort keys $functions) {
     my $function = $functions->{$function_name};
     print
-        li(h3(a({href=>url."api/$function_name", style=>'color: black;'}, $function_name))),
+        li({style=>'margin-top: 30px;'}, h4(a({href=>url."api/$function_name", style=>'color: black;'}, "/api/$function_name"))),
         p($function->{description}),
         p("Parameters, in order of precedence:"),
         ul(li({type=>'square'}, param_list $function->{parameters}));
 }
-print "</ul>";
+print '</ul>';
 
 print h2("Footnotes");
 print ol li({id=>'fn1'},
@@ -93,5 +110,5 @@ print ol li({id=>'fn1'},
     with each individual player, and assigns the player to the team with the most
     occurrences. This deals with team transfers poorly. <a href="#ref1">&#8617;</a>');
 
-print end_html, "\n";
+print '</div>' . end_html . "\n";
 
