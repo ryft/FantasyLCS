@@ -12,26 +12,37 @@ use strict;
 use warnings;
 
 Readonly my $CONFIG_PATH => $ENV{'CONFIG_PATH'} || '';
-Readonly my $TOURNAMENTS => {
-    102 =>  'EU LCS',
-    104 =>  'NA LCS',
-    175 =>  'Group A',
-    177 =>  'Group B',
-    178 =>  'Group C',
-    179 =>  'Group D',
-    176 =>  'Knockout Stage',
-};
 
 my $config = LoadFile ($CONFIG_PATH . 'config.yml');
+my $tournaments = {};
 
 # Configure the user agent, LolEsports.com is picky
 my $ua = LWP::UserAgent->new;
-$ua->agent('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:30.0) Gecko/20100101 Firefox/30.0');
+$ua->agent('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:30.0) Gecko/20100101 Firefox/30.0 (github.com/ryft/FantasyLCS)');
 $ua->timeout(60);
 $ua->env_proxy;
 
 my $dbh = DBI->connect('DBI:mysql:fantasy', $config->{database}->{username}, $config->{database}->{password})
-    or die "Cannot connect to database:".DBI->errstr;
+    or die "Cannot connect to database: ".DBI->errstr;
+$dbh->{RaiseError} = 1;
+
+# The Riot API can't be trusted to return matches in order,
+# so ensure placeholder IDs are in place to satisfy foreign key constraints
+sub touch_tournament {
+    my $id = shift;
+    my ($count) = $dbh->selectrow_array('SELECT COUNT(1) FROM tournament WHERE id = ?', undef, ($id));
+    $dbh->do('INSERT INTO tournament (id) VALUES (?)', {}, $id) unless ($count);
+}
+sub touch_team {
+    my $id = shift;
+    my ($count) = $dbh->selectrow_array('SELECT COUNT(1) FROM team WHERE id = ?', undef, ($id));
+    $dbh->do('INSERT INTO team (id) VALUES (?)', {}, $id) unless ($count);
+}
+sub touch_game {
+    my $id = shift;
+    my ($count) = $dbh->selectrow_array('SELECT COUNT(1) FROM game WHERE id = ?', undef, ($id));
+    $dbh->do('INSERT INTO game (id) VALUES (?)', {}, $id) unless ($count);
+}
 
 # get_schedule(date_ymd)
 # Fetches the event schedule from lolesports.com,
@@ -70,21 +81,23 @@ sub parse_event_schedule {
     my $programming = shift;
     
     foreach my $block (@$programming) {
-        if (defined $TOURNAMENTS->{$block->{tournamentId}}) {
-            print "Matches for ".substr($block->{dateTime}, 0, 10)." in ${\$block->{label}}:\n";
+        my $tournament_id   = $block->{tournamentId};
+        my $tournament_name = $block->{tournamentName};
+        $tournaments->{$tournament_id} = $tournament_name;
 
-            # Insert tournament record or update if it exists
-            my $sth = $dbh->prepare(
-                'INSERT INTO tournament (id, name) VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE id = ?, name = ?'
-            )   or die "Couldn't prepare statement: ".$dbh->errstr;
-            $sth->execute(
-                $block->{tournamentId}, $block->{tournamentName},
-                $block->{tournamentId}, $block->{tournamentName},
-            )   or die "Couldn't execute statement: ".$sth->errstr;
-            
-            parse_event_block($block);
-        }
+        print "Matches for ".substr($block->{dateTime}, 0, 10)." in ${\$block->{label}}:\n";
+
+        # Insert tournament record or update if it exists
+        my $sth = $dbh->prepare(
+            'INSERT INTO tournament (id, name) VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE id = ?, name = ?'
+        );
+        $sth->execute(
+            $tournament_id, $tournament_name,
+            $tournament_id, $tournament_name,
+        );
+        
+        parse_event_block($block);
     }
 }
 
@@ -106,46 +119,52 @@ sub parse_event_block {
                     'INSERT INTO team (id, name, acronym, wins, losses)
                     VALUES (?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE id = ?, name = ?, acronym = ?, wins = ?, losses = ?'
-                )   or die "Couldn't prepare statement: ".$dbh->errstr;
+                );
                 $sth_team->execute(
                     $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
                     $team->{id}, $team->{name}, $team->{acronym}, $team->{wins}, $team->{losses},
-                )   or die "Couldn't execute statement: ".$sth_team->errstr;
+                );
             }
         }
+        
+        # Ensure foreign key constraint is satisfied
+        $match->{winnerId} ||= 0;
+        touch_team($match->{winnerId});
+        touch_tournament($match->{tournament}->{id});
 
         # Insert match record or update winner
         my $sth_match = $dbh->prepare(
             'INSERT INTO `match` (id, tournamentId, tournamentRound, blueId, redId, winnerId, name, dateTime)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE winnerId = ?'
-        )   or die "Couldn't prepare statement: ".$dbh->errstr;
-        
+        );
         $sth_match->execute(
             $match->{matchId},
             $match->{tournament}->{id},
             $match->{tournament}->{round},
             $match->{contestants}->{blue}->{id},
             $match->{contestants}->{red}->{id},
-            $match->{winnerId} || 0,
+            $match->{winnerId},
             $match->{matchName},
             (format_datetime $match->{dateTime}),
-            $match->{winnerId} || 0,
-        )   or die "Couldn't execute statement: ".$sth_match->errstr;
+            $match->{winnerId},
+        );
 
         my $games = $match->{gamesInfo};
         foreach my $game (values $games) {
             
             # Insert game record or update winner
+            $game->{winnerId} ||= 0;
+            touch_team($game->{winnerId});
             my $sth_game = $dbh->prepare(
                 'INSERT INTO game (id, matchId, winnerId)
                 VALUES (?, ?, ?)
                 ON DUPLICATE KEY UPDATE id = ?, matchId = ?, winnerId = ?'
-            )   or die "Couldn't prepare statement: ".$dbh->errstr;
+            );
             $sth_game->execute(
                 $game->{id}, $match->{matchId}, $game->{winnerId},
                 $game->{id}, $match->{matchId}, $game->{winnerId},
-            )   or die "Couldn't execute statement: ".$sth_game->errstr;
+            );
         }
     }
 }
@@ -156,30 +175,12 @@ sub parse_team_stats {
     foreach my $game_name (keys $games) {
         my $game_id = substr $game_name, 4;
         my $game = $games->{$game_name};
+        touch_game($game_id);
 
         foreach my $attr (keys $game) {
             next unless substr($attr, 0, 4) eq "team";
             my $team_game = $game->{$attr};
-
-            # Test wether or not we've seen this team before
-            my $sth_count_team = $dbh->prepare('SELECT COUNT(1) FROM team WHERE id = ?');
-            $sth_count_team->execute($team_game->{teamId})
-                or die "Coun't execute statement: ".$sth_count_team->errstr;
-            my ($count_team) = $sth_count_team->fetchrow_array;
-            if ($count_team == 0) {
-                print "Team ".$team_game->{teamId}." not found, re-run pre-processing\n";
-                next;
-            }
-
-            # Test wether or not we've seen this game before
-            my $sth_count_game = $dbh->prepare('SELECT COUNT(1) FROM game WHERE id = ?');
-            $sth_count_game->execute($game_id)
-                or die "Coun't execute statement: ".$sth_count_game->errstr;
-            my ($count_game) = $sth_count_game->fetchrow_array;
-            if ($count_game == 0) {
-                print "Game ".$game_id." not found, re-run pre-processing\n";
-                next;
-            }
+            touch_team($team_game->{teamId});
 
             my $sth = $dbh->prepare(
                 'INSERT INTO teamGame
@@ -187,7 +188,7 @@ sub parse_team_stats {
                     firstBlood, firstTower, firstInhibitor, towersKilled)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE teamId = ?'
-            )   or die "Couldn't prepare statement: ".$dbh->errstr;
+            );
             $sth->execute(
                 $team_game->{teamId},
                 $game_id,
@@ -198,7 +199,7 @@ sub parse_team_stats {
                 $team_game->{firstInhibitor},
                 $team_game->{towersKilled},
                 $team_game->{teamId},
-            )   or die "Couldn't execute statement: ".$sth->errstr;
+            );
         }
     }
 }
@@ -217,21 +218,14 @@ sub parse_player_stats {
             my $sth_player = $dbh->prepare(
                 'INSERT INTO player (id, name, role) VALUES (?, ?, ?)
                 ON DUPLICATE KEY UPDATE id = ?, name = ?, role = ?'
-            ) or die "Couldn't prepare statement: ".$dbh->errstr;
+            );
             $sth_player->execute(
                 $player_game->{playerId}, $player_game->{playerName}, $player_game->{role},
                 $player_game->{playerId}, $player_game->{playerName}, $player_game->{role},
-            ) or die "Couldn't execute statement: ".$sth_player->errstr;
+            );
 
             # Test wether or not we've seen this game before
-            my $sth_count_game = $dbh->prepare('SELECT COUNT(1) FROM game WHERE id = ?');
-            $sth_count_game->execute($game_id)
-                or die "Coun't execute statement: ".$sth_count_game->errstr;
-            my ($count_game) = $sth_count_game->fetchrow_array;
-            if ($count_game == 0) {
-                print "Game ".$game_id." not found, re-run pre-processing\n";
-                next;
-            }
+            touch_game($game_id);
 
             my $sth = $dbh->prepare(
                 'INSERT INTO playerGame
@@ -239,7 +233,7 @@ sub parse_player_stats {
                     doubleKills, tripleKills, quadraKills, pentaKills)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE playerId = ?'
-            )   or die "Couldn't prepare statement: ".$dbh->errstr;
+            );
             $sth->execute(
                 $player_game->{playerId},
                 $game_id,
@@ -252,7 +246,7 @@ sub parse_player_stats {
                 $player_game->{quadraKills},
                 $player_game->{pentaKills},
                 $player_game->{playerId},
-            )   or die "Couldn't execute statement: ".$sth->errstr;
+            );
         }
     }
 }
@@ -271,14 +265,14 @@ sub update_player_team {
         WHERE g.matchId = m.id
           AND pg.gameId = g.id
           AND pg.playerId = ?',
-    {}, $player_id) or die "Couldn't execute statement: ".$dbh->errstr;
+    {}, $player_id);
 
     # Count the number of appearances each team has made in these matches
     my %team_ids = ();
     foreach my $ids (@$teams_involved) {
         my ($blue_id, $red_id) = @$ids;
-        $team_ids{$blue_id}++;
-        $team_ids{$red_id}++;
+        $blue_id and $team_ids{$blue_id}++;
+        $red_id and $team_ids{$red_id}++;
     }
 
     # Find the team with the most appearances (hash key with largest value)
@@ -292,30 +286,22 @@ sub update_player_team {
     }
 
     # Update the player's database record
-    my $sth = $dbh->prepare('UPDATE player SET teamId = ? WHERE id = ?')
-        or die "Coutldn't prepare statement: ".$dbh->errstr;
-    $sth->execute($tid, $player_id)
-        or die "Couldn't execute statement: ".$sth->errstr;
+    $dbh->do('UPDATE player SET teamId = ? WHERE id = ?', {}, $tid, $player_id);
 }
 
 # Gets the date of the earliest incomplete fetch, or today's date
 sub get_next_fetch {
-    my $sth = $dbh->prepare('SELECT `dateTime` FROM `match` WHERE winnerId = 0 ORDER BY `dateTime` ASC')
-        or die "Couldn't prepare statement: ".$dbh->errstr;
-    $sth->execute or die "Couldn't execute statement: ".$sth->errstr;
-    
-    my $next_fetch = $sth->fetchrow_array;
+    my ($next_fetch) = $dbh->selectrow_array('SELECT `dateTime` FROM `match` WHERE winnerId = 0 ORDER BY `dateTime` ASC');
     return ($next_fetch) ? substr($next_fetch, 0, 10) : DateTime->now->ymd;
 }
 
-
 parse_event_schedule (get_schedule $config->{'next-fetch'});
 
-foreach my $id (keys $TOURNAMENTS) {
+foreach my $id (keys $tournaments) {
     my $stats = get_tournament_stats $id;
-    print "Updating team stats for ".$TOURNAMENTS->{$id}."\n";
+    print "Updating team stats for ".$tournaments->{$id}."\n";
     parse_team_stats $stats->{teamStats};
-    print "Updating player stats for ".$TOURNAMENTS->{$id}."\n";
+    print "Updating player stats for ".$tournaments->{$id}."\n";
     parse_player_stats $stats->{playerStats};
 }
 
