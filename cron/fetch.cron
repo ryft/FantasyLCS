@@ -1,0 +1,2 @@
+FETCH_PATH=/home/jrn/FantasyLCS
+30  2   *   *   *   touch $FETCH_PATH/fetch.stamp; CONFIG_PATH=$FETCH_PATH/ perl $FETCH_PATH/fetch.pl teams > $FETCH_PATH/fetch.log
