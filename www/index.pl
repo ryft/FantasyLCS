@@ -19,7 +19,7 @@ print start_html(
         }),
         Link({
             -rel    => "stylesheet",
-            -href   => "http://bootswatch.com/flatly/bootstrap.min.css",
+            -href   => "https://bootswatch.com/flatly/bootstrap.min.css",
         }),
         Link({
             -rel    => "stylesheet",
